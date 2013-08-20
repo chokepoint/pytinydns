@@ -52,17 +52,18 @@ def read_config(config):
 	
 	for line in cfile:
 		sline = line.split(':')
-		if len(sline) != 2:
+		if len(sline) != 2 and line[0] != '#':
 			print 'Invalid config format.'
 			print 'google.com.:127.0.0.1'
 			sys.exit(1)
 	
-		dns_dict[sline[0]] = sline[1][0:-1] # trim \n off at the end of the line
+		if line[0] != '#':
+			dns_dict[sline[0]] = sline[1][0:-1] # trim \n off at the end of the line
 	
 	return dns_dict
 	
 def main():
-	default_ip='192.168.69.1' # If the specified domain isn't in the config file, fall back to this
+	default_ip='127.0.0.1' # If the specified domain isn't in the config file, fall back to this
 	no_config = True
 
 	try:
