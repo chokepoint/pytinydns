@@ -1,0 +1,17 @@
+PYTinyDNS:
+
+Usage: pytinydns.py [OPTION]...
+	-h, --help 		Print this message
+	-c, --config=config	Specify config file to use
+	-d, --default=ip	Specify the default IP address to fall back on
+
+This is a tiny DNS server that resolves A records to IPs.
+
+Sample Config File:
+google.com.:127.0.0.1
+yahoo.com.:192.168.1.1
+
+The above config will resolve google to 127.0.0.1 and yahoo.com to 192.168.1.1 respectively
+
+Borrowed DNSQuery class from http://code.activestate.com/recipes/491264-mini-fake-dns-server/
+
