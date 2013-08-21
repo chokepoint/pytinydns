@@ -10,6 +10,7 @@ google.com.:192.168.1.1
 
 resolves google.com to 192.168.1.1
 """
+import getopt
 import redis
 import sys
 
@@ -21,8 +22,6 @@ def import_config(config, redis_addr):
 	except:
 		print '[-] File %s could not be found.' % (config)
 		sys.exit(1)
-	print "[+] Connecting to redis server %s" % (redis_addr)
-	r_server = redis.Redis(redis_addr)
 	
 	for line in cfile:
 		sline = line.split(':')
@@ -32,24 +31,50 @@ def import_config(config, redis_addr):
 			sys.exit(1)
 		else:
 			if line[0] != '#':
-				try:
-					print '[+] Importing record: %s -> %s' % (sline[0],sline[1][0:-1])
-					r_server.set(sline[0], sline[1][0:-1]) # trim \n off at the end of the line
-				except:
-					print '[-] Connection failed with server %s' % (redis_addr)
-					sys.exit(1)
-	print '[-] Import Complete'
-def main():
-	if len(sys.argv) == 1:
-		print 'Usage: redis_import.py import_file'
-		sys.exit(2)
-		
-	print '[-] PyTinyDNS Redis Import Tool'
-		
-	redis_addr = 'localhost'
-
-	import_config(sys.argv[1], redis_addr)
+				domain = sline[0]
+				ip = sline[1][0:-1]
+				insert_record(domain,ip,redis_addr)
 	
+def insert_record(domain,ip,redis_addr):
+	r_server = redis.Redis(redis_addr)
+
+	try:
+		print '[+] Importing record: %s -> %s' % (domain,ip)
+		r_server.set(domain, ip) 
+	except:
+		print '[-] Connection failed with server %s' % (redis_addr)
+		sys.exit(1)
+
+def print_help():
+	print 'Usage: redis_import.py OPTIONS'
+	print '\t-h, --help\t\tPrint this message'
+	print '\t-l, --list=host_file\tImport host file'
+	print '\t-u, --update=host:ip\tUpdate one record'
+
+def main():
+	redis_addr = 'localhost'
+	
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "hu:l:", ["update=","list=", "help"])
+	except getopt.error, msg:
+		print msg
+		print_help()
+		sys.exit(2)
+	
+	print '[-] PyTinyDNS Redis Import Tool'	
+	
+	for opt, arg in opts:
+		if opt in ('-h', '--help'):
+			print_help()
+			sys.exit(0)
+		elif opt in ('-u', '--update'):
+			sarg = arg.split(':')
+			insert_record(sarg[0],sarg[1],redis_addr)
+		elif opt in ('-l', '--list'):
+			print arg
+			import_config(arg,redis_addr)
+
+	print '[-] Import Complete'
 	
 
 if __name__ == '__main__':
