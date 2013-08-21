@@ -2,22 +2,32 @@ PyTinyDNS:
 
 Usage: pytinydns.py [OPTION]...
 	-h, --help 				Print this message
+	-c, --config=file		Specify the config file to use
 	-d, --default=ip		Specify the default IP address to fall back on
 	-l, --list=host_file	Specify host file to use instead of redis
 	-n, --noredis			Specify not to use redis db. Default IP will be used
 
+
 This is a tiny DNS server that resolves A records to IPs.
 
-Sample Config File:
+Sample Host File:
 # Comment
 google.com.:127.0.0.1
 yahoo.com.:192.168.1.1
 
-PyTinyDNS will import the config file and save the keys and values into the redis db.
+Sample Config File:
+[PyTinyDNS]
+DefaultIP = 192.168.1.99
+Use_Redis = yes
+Redis_Server = localhost
+#Host_File = pytinydns.host
+
+
+PyTinyDNS redis import tool will import the host file and save the keys and values into the redis db.
 
 If you elect not to use redis, then you can either resolve every domain to the default IP or use a config file to supply A records.
 
-The above config will resolve google to 127.0.0.1 and yahoo.com to 192.168.1.1 respectively
+The above host file will resolve google to 127.0.0.1 and yahoo.com to 192.168.1.1 respectively
 
 Added redis_import.py:
 

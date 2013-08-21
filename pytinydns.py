@@ -11,10 +11,17 @@ google.com.:127.0.0.1
 
 The above would resolve any requests for google.com to 127.0.0.1
 """
+import ConfigParser
 import getopt
 import redis
 import socket
 import sys
+
+#Global variables
+default_ip = '127.0.0.1'
+redis_server = 'localhost'
+use_redis = True
+dns_dict = {}
 
 # DNSQuery class from http://code.activestate.com/recipes/491264-mini-fake-dns-server/
 class DNSQuery:
@@ -45,13 +52,20 @@ class DNSQuery:
 def print_help():
 	print 'Usage: pytinydns.py [OPTION]...'
 	print '\t-h, --help \t\tPrint this message'
+	print '\t-c, --config=file\tSpecify the config file to use'
 	print '\t-d, --default=ip\tSpecify the default IP address to fall back on'
 	print '\t-l, --list=host_file\tSpecify host file to use instead of redis'
 	print '\t-n, --noredis\t\tSpecify not to use redis db. Default IP will be used'
 
-def read_config(config):
-	cfile = open(config,"r")
-
+def read_hosts(config):
+	# Use global dns dictionary
+	global dns_dict
+	
+	try:
+		cfile = open(config,"r")
+	except:
+		print '[-] Host file %s not found.' % (config)
+		sys.exit(1)
 	dns_dict = {}
 
 	for line in cfile:
@@ -64,16 +78,46 @@ def read_config(config):
 			if line[0] != '#':
 				dns_dict[sline[0]] = sline[1][0:-1] # trim \n off at the end of the line
 	
-	return dns_dict
+
+def read_config(config):
+	# Use global config variables
+	global default_ip
+	global redis_server
+	global use_redis
 	
-def main():
-	default_ip='127.0.0.1' # If the specified domain isn't in the config file, fall back to this
-	redis_addr='localhost' # redis server to connect to
-	no_redis = False
-	dns_dict = {}
+	cparse = ConfigParser.ConfigParser()
 	
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hnd:l:", ["list=", "noredis", "help", "default="])
+		cparse.read(config)
+	except:
+		print '[-] Config file %s not found.' % (config)
+		sys.exit(1)
+	
+	for item in cparse.items('PyTinyDNS'):
+		arg = item[1]
+		opt = item[0]
+		if opt == 'defaultip':
+			default_ip = arg
+		elif opt == 'use_redis':
+			if arg == 'yes':
+				use_redis = True
+			elif arg == 'no':
+				use_redis = False
+		elif opt == 'redis_server':
+			redis_server = arg
+		elif opt == 'host_file':
+			read_hosts(arg)
+			
+	
+def main():
+	# Use global config variables
+	global default_ip
+	global redis_server
+	global use_redis
+	global dns_dict
+	
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "hnc:d:l:", ["config=","list=", "noredis", "help", "default="])
 	except getopt.error, msg:
 		print msg
 		print_help()
@@ -84,17 +128,19 @@ def main():
 			print_help()
 			sys.exit(0)
 		elif opt in ('-n', '--noredis'):
-			no_redis = True
+			use_redis = False
 		elif opt in ('-d', '--default'):
 			default_ip = arg
 		elif opt in ('-l', '--list'):
-			no_redis = True
-			dns_dict = read_config(arg)
+			use_redis = False
+			dns_dict = read_hosts(arg)
+		elif opt in ('-c', '--config'):
+			read_config(arg)
 	
 	print '[-] PyTinyDNS'
 	
-	if no_redis == False:
-			r_server = redis.Redis(redis_addr)
+	if use_redis == True:
+			r_server = redis.Redis(redis_server)
   
 	udps = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	udps.bind(('',53))
@@ -103,11 +149,11 @@ def main():
 		while 1:
 			data, addr = udps.recvfrom(1024)
 			p=DNSQuery(data)
-			if no_redis == False: # We're using redis. Check if the key exists.
+			if use_redis == True: # We're using redis. Check if the key exists.
 				try:
 					a_record = r_server.get(p.domain)
 				except:
-					print 'No redis server connection with %s.' % (redis_addr) # No connection with redis: fall back to default
+					print 'No redis server connection with %s.' % (redis_server) # No connection with redis: fall back to default
 					a_record = default_ip
 				if a_record:      # A record returned from redis DB
 					ip = a_record
