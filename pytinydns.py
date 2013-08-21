@@ -2,7 +2,7 @@
 """PyTinyDNS docstring.
 
 This script acts as a light A record DNS resolver.
-pytinydns.conf can be used to import A records into a redis DB
+Use redis_import.py to import a host file into a live DB.
 You can also use pydns.conf as a flat file config with no DB.
 
 Example:
@@ -45,26 +45,10 @@ class DNSQuery:
 def print_help():
 	print 'Usage: pytinydns.py [OPTION]...'
 	print '\t-h, --help \t\tPrint this message'
-	print '\t-c, --config=config\tSpecify config file to use instead of redis'
 	print '\t-d, --default=ip\tSpecify the default IP address to fall back on'
-	print '\t-i, --import=config\tSpecify config file to import into redis'
+	print '\t-l, --list=host_file\tSpecify host file to use instead of redis'
 	print '\t-n, --noredis\t\tSpecify not to use redis db. Default IP will be used'
 
-def import_config(config, redis_addr):
-	cfile = open(config,"r")
-	
-	r_server = redis.Redis(redis_addr)
-	
-	for line in cfile:
-		sline = line.split(':')
-		if len(sline) != 2 and line[0] != '#':
-			print 'Invalid config format.'
-			print 'google.com.:127.0.0.1'
-			sys.exit(1)
-		else:
-			if line[0] != '#':
-				r_server.set(sline[0], sline[1][0:-1]) # trim \n off at the end of the line
-			
 def read_config(config):
 	cfile = open(config,"r")
 
@@ -89,7 +73,7 @@ def main():
 	dns_dict = {}
 	
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hni:d:c:", ["config=", "noredis", "help", "import=", "default="])
+		opts, args = getopt.getopt(sys.argv[1:], "hnd:l:", ["list=", "noredis", "help", "default="])
 	except getopt.error, msg:
 		print msg
 		print_help()
@@ -99,14 +83,11 @@ def main():
 		if opt in ('-h', '--help'):
 			print_help()
 			sys.exit(0)
-		elif opt in ('-i', '--import'):
-			config_file = arg
-			import_config(config_file,redis_addr)
 		elif opt in ('-n', '--noredis'):
 			no_redis = True
 		elif opt in ('-d', '--default'):
 			default_ip = arg
-		elif opt in ('-c', '--config'):
+		elif opt in ('-l', '--list'):
 			no_redis = True
 			dns_dict = read_config(arg)
 	
