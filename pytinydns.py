@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """PyTinyDNS docstring.
 
 This script acts as a light A record DNS resolver.
@@ -151,7 +151,7 @@ def main():
 			p=DNSQuery(data)
 			if use_redis == True: # We're using redis. Check if the key exists.
 				try:
-					a_record = r_server.get(p.domain)
+					a_record = r_server.hget('pytinydns.domains', p.domain)
 				except:
 					print 'No redis server connection with %s.' % (redis_server) # No connection with redis: fall back to default
 					a_record = default_ip

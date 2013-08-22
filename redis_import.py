@@ -40,7 +40,7 @@ def insert_record(domain, ip, redis_server):
 
 	try:
 		print '[+] Importing record: %s -> %s' % (domain,ip)
-		r_server.set(domain, ip) 
+		r_server.hset('pytinydns.domains', domain, ip) 
 	except:
 		print '[-] Connection failed with server %s' % (redis_addr)
 		sys.exit(1)
