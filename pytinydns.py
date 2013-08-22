@@ -21,6 +21,7 @@ import sys
 default_ip = '127.0.0.1'
 redis_server = 'localhost'
 use_redis = True
+resolve_nonmatch = False
 dns_dict = {}
 
 # DNSQuery class from http://code.activestate.com/recipes/491264-mini-fake-dns-server/
@@ -40,7 +41,14 @@ class DNSQuery:
 
 	def build_reply(self, ip):
 		packet=''
-		if self.domain:
+		if ip == '': # Taken from crypt0s (https://github.com/Crypt0s/FakeDns/blob/master/fakedns.py)
+			# Build the response packet         
+			packet+=self.data[:2] + "\x81\x83"                         # Reply Code: No Such Name
+																	   #0 answer rrs   0 additional, 0 auth
+			packet+=self.data[4:6] + '\x00\x00' + '\x00\x00\x00\x00'   # Questions and Answers Counts
+			packet+=self.data[12:]                                     # Original Domain Name Question
+		
+		if self.domain and packet == '':
 			packet+=self.data[:2] + "\x81\x80"
 			packet+=self.data[4:6] + self.data[4:6] + '\x00\x00\x00\x00'   # Questions and Answers Counts
 			packet+=self.data[12:]                                         # Original Domain Name Question
@@ -56,6 +64,7 @@ def print_help():
 	print '\t-d, --default=ip\tSpecify the default IP address to fall back on'
 	print '\t-l, --list=host_file\tSpecify host file to use instead of redis'
 	print '\t-n, --noredis\t\tSpecify not to use redis db. Default IP will be used'
+	print '\t-r, --resolve\t\tSpecify to resolve non matches to actual IP'
 
 def read_hosts(config):
 	# Use global dns dictionary
@@ -66,7 +75,6 @@ def read_hosts(config):
 	except:
 		print '[-] Host file %s not found.' % (config)
 		sys.exit(1)
-	dns_dict = {}
 
 	for line in c_file:
 		sline = line.split(':')
@@ -78,12 +86,12 @@ def read_hosts(config):
 			if line[0] != '#': 						 # Make sure the line is not a comment
 				dns_dict[sline[0]] = sline[1][0:-1]  # trim \n off at the end of the line
 	
-
 def read_config(config):
 	# Use global config variables
 	global default_ip
 	global redis_server
 	global use_redis
+	global resolve_nonmatch
 	
 	c_parse = ConfigParser.ConfigParser()
 	
@@ -96,6 +104,7 @@ def read_config(config):
 	for item in c_parse.items('PyTinyDNS'):
 		arg = item[1]
 		opt = item[0]
+		
 		if opt == 'defaultip':
 			default_ip = arg
 		elif opt == 'use_redis':
@@ -107,17 +116,30 @@ def read_config(config):
 			redis_server = arg
 		elif opt == 'host_file':
 			read_hosts(arg)
-			
+		elif opt == 'resolve_nonmatch':
+			if arg == 'yes':
+				resolve_nonmatch = True
+			elif arg == 'no':
+				resolve_nonmatch = False
+
+# Make request to external DNS (used when resolve_nonmatch = True)
+def ext_request(domain):
+	try:
+		return socket.gethostbyname(domain)
+	except: # Domain doesn't exist
+		print '[-] Unable to parse request'
+		return ''
 	
 def main():
 	# Use global config variables
 	global default_ip
 	global redis_server
 	global use_redis
+	global resolve_nonmatch
 	global dns_dict
 	
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hnc:d:l:", ["config=","list=", "noredis", "help", "default="])
+		opts, args = getopt.getopt(sys.argv[1:], "hrnc:d:l:", ["resolve", "config=", "list=", "noredis", "help", "default="])
 	except getopt.error, msg:
 		print msg
 		print_help()
@@ -136,6 +158,8 @@ def main():
 			dns_dict = read_hosts(arg)
 		elif opt in ('-c', '--config'):
 			read_config(arg)
+		elif opt in ('-r', 'resolve'):
+			resolve_nonmatch = True
 	
 	print '[-] PyTinyDNS'
 	
@@ -147,23 +171,33 @@ def main():
   
 	try:
 		while 1:
+			ip = ''
 			data, src_addr = udps.recvfrom(1024)
 			p=DNSQuery(data)
 			if use_redis == True: # We're using redis. Check if the key exists.
-				try:
+			
+				try: # Try to find domain using redis
 					a_record = r_server.hget('pytinydns.domains', p.domain)
 				except:
 					print 'No redis server connection with %s.' % (redis_server) # No connection with redis: fall back to default
 					a_record = default_ip
-				if a_record:      # A record returned from redis DB
+					
+				if a_record is not None: # A record returned from redis DB
 					ip = a_record
-				else:             # No record returned: fall back to default.
-					ip = default_ip
-			else:				  # Not using redis: fall back to default.
+				else:  # No record returned
+					if resolve_nonmatch == True:
+						ip = ext_request(p.domain)
+					else:
+						ip = default_ip
+						
+			else:  # Not using redis: fall back to file or default.
 				if p.domain in dns_dict:
 					ip = dns_dict[p.domain]
 				else:
-					ip = default_ip
+					if resolve_nonmatch == True:
+						ip = ext_request(p.domain)
+					else:
+						ip = default_ip
 			
 			udps.sendto(p.build_reply(ip), src_addr)
 			print '[+] Request from %s: %s -> %s' % (src_addr[0], p.domain, ip) 

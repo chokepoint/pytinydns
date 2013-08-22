@@ -1,11 +1,12 @@
 PyTinyDNS:
 
 Usage: pytinydns.py [OPTION]...
-	-h, --help 				Print this message
-	-c, --config=file		Specify the config file to use
-	-d, --default=ip		Specify the default IP address to fall back on
+	-h, --help 		Print this message
+	-c, --config=file	Specify the config file to use
+	-d, --default=ip	Specify the default IP address to fall back on
 	-l, --list=host_file	Specify host file to use instead of redis
-	-n, --noredis			Specify not to use redis db. Default IP will be used
+	-n, --noredis		Specify not to use redis db. Default IP will be used
+	-r, --resolve		Specify to resolve non matches to actual IP
 
 
 This is a tiny DNS server that resolves A records to IPs.
@@ -20,7 +21,10 @@ Sample Config File:
 DefaultIP = 192.168.1.99
 Use_Redis = yes
 Redis_Server = localhost
-#Host_File = pytinydns.host
+# Resolve_Nonmatch will query your normal DNS for domains with no local match.
+# May cause delays in answering other requests. Default is no.
+# Resolve_Nonmatch = yes
+# Host_File = pytinydns.host
 
 
 PyTinyDNS redis import tool will import the host file and save the keys and values into the redis db.
