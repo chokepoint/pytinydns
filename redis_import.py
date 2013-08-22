@@ -14,7 +14,7 @@ import getopt
 import redis
 import sys
 
-def import_config(config, redis_addr):
+def import_config(config, redis_server):
 	print '[+] Opening File %s' % (config)
 	
 	try:
@@ -33,10 +33,10 @@ def import_config(config, redis_addr):
 			if line[0] != '#':
 				domain = sline[0]
 				ip = sline[1][0:-1]
-				insert_record(domain,ip,redis_addr)
+				insert_record(domain,ip,redis_server)
 	
-def insert_record(domain,ip,redis_addr):
-	r_server = redis.Redis(redis_addr)
+def insert_record(domain, ip, redis_server):
+	r_server = redis.Redis(redis_server)
 
 	try:
 		print '[+] Importing record: %s -> %s' % (domain,ip)
@@ -52,7 +52,7 @@ def print_help():
 	print '\t-u, --update=host:ip\tUpdate one record'
 
 def main():
-	redis_addr = 'localhost'
+	redis_server = 'localhost'
 	
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], "hu:l:", ["update=","list=", "help"])
@@ -69,10 +69,10 @@ def main():
 			sys.exit(0)
 		elif opt in ('-u', '--update'):
 			sarg = arg.split(':')
-			insert_record(sarg[0],sarg[1],redis_addr)
+			insert_record(sarg[0],sarg[1],redis_server)
 		elif opt in ('-l', '--list'):
 			print arg
-			import_config(arg,redis_addr)
+			import_config(arg,redis_server)
 
 	print '[-] Import Complete'
 	

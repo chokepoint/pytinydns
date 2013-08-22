@@ -62,21 +62,21 @@ def read_hosts(config):
 	global dns_dict
 	
 	try:
-		cfile = open(config,"r")
+		c_file = open(config,"r")
 	except:
 		print '[-] Host file %s not found.' % (config)
 		sys.exit(1)
 	dns_dict = {}
 
-	for line in cfile:
+	for line in c_file:
 		sline = line.split(':')
 		if len(sline) != 2 and line[0] != '#':
 			print 'Invalid config format.'
 			print 'google.com.:127.0.0.1'
 			sys.exit(1)
 		else:
-			if line[0] != '#':
-				dns_dict[sline[0]] = sline[1][0:-1] # trim \n off at the end of the line
+			if line[0] != '#': 						 # Make sure the line is not a comment
+				dns_dict[sline[0]] = sline[1][0:-1]  # trim \n off at the end of the line
 	
 
 def read_config(config):
@@ -85,15 +85,15 @@ def read_config(config):
 	global redis_server
 	global use_redis
 	
-	cparse = ConfigParser.ConfigParser()
+	c_parse = ConfigParser.ConfigParser()
 	
 	try:
-		cparse.read(config)
+		c_parse.read(config)
 	except:
 		print '[-] Config file %s not found.' % (config)
 		sys.exit(1)
 	
-	for item in cparse.items('PyTinyDNS'):
+	for item in c_parse.items('PyTinyDNS'):
 		arg = item[1]
 		opt = item[0]
 		if opt == 'defaultip':
@@ -147,7 +147,7 @@ def main():
   
 	try:
 		while 1:
-			data, addr = udps.recvfrom(1024)
+			data, src_addr = udps.recvfrom(1024)
 			p=DNSQuery(data)
 			if use_redis == True: # We're using redis. Check if the key exists.
 				try:
@@ -165,8 +165,8 @@ def main():
 				else:
 					ip = default_ip
 			
-			udps.sendto(p.build_reply(ip), addr)
-			print '[+] Request from %s: %s -> %s' % (addr[0], p.domain, ip) 
+			udps.sendto(p.build_reply(ip), src_addr)
+			print '[+] Request from %s: %s -> %s' % (src_addr[0], p.domain, ip) 
 	except KeyboardInterrupt:
 		print '[-] Ending'
 		udps.close()
