@@ -167,6 +167,14 @@ def main():
 			r_server = redis.Redis(redis_server)
   
 	udps = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+	#SO_REUSEPORT option allows multiple threads to bind to one port.
+	# kernel >= 3.9 https://lwn.net/Articles/542629/
+	try: 
+		udps.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+	except AttributeError:
+		print '[-] SO_REUSEPORT not supported by your system.'
+	
 	udps.bind(('',53))
   
 	try:
