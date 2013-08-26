@@ -17,6 +17,11 @@ import redis
 import socket
 import sys
 
+try:
+	socket.SO_REUSEPORT
+except AttributeError:
+	socket.SO_REUSEPORT = 15
+
 #Global variables
 default_ip = '127.0.0.1'
 redis_server = 'localhost'
@@ -172,7 +177,7 @@ def main():
 	# kernel >= 3.9 https://lwn.net/Articles/542629/
 	try: 
 		udps.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-	except AttributeError:
+	except socket.error:
 		print '[-] SO_REUSEPORT not supported by your system.'
 	
 	udps.bind(('',53))
