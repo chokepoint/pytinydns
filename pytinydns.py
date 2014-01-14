@@ -160,7 +160,7 @@ def main():
 			default_ip = arg
 		elif opt in ('-l', '--list'):
 			use_redis = False
-			dns_dict = read_hosts(arg)
+			read_hosts(arg)
 		elif opt in ('-c', '--config'):
 			read_config(arg)
 		elif opt in ('-r', 'resolve'):
